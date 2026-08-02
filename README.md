@@ -1,4 +1,4 @@
-# cursor-github-skill
+# cursor-github-best-practices-skill
 
 A [Cursor](https://cursor.com) Agent Skill + Hook pair that enforces safe, auditable Git and GitHub practices — for distributed projects with multiple contributors — across every project on your machine.
 
@@ -33,7 +33,7 @@ The hook is a backstop, not a substitute for judgment — it catches the three m
 ## Repo structure
 
 ```
-cursor-github-skill/
+cursor-github-best-practices-skill/
 ├── skills/
 │   └── github-distributed-workflow/
 │       ├── SKILL.md                    # Auto-invoked rules + links to reference files
@@ -55,8 +55,8 @@ This is a **personal** skill/hook pair, meant to apply across all of your projec
 0. Clone this repo and `cd` into it (the commands below use paths relative to the repo root):
 
    ```powershell
-   git clone https://github.com/manujoy7/cursor-github-skill.git
-   Set-Location cursor-github-skill
+   git clone https://github.com/manujoy7/cursor-github-best-practices-skill.git
+   Set-Location cursor-github-best-practices-skill
    ```
 
 1. Copy the skill folder:
