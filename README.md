@@ -96,7 +96,7 @@ Cursor loads skills via progressive disclosure: only a skill's `name`/`descripti
 | Hook (`git-guard.ps1`) | N/A — runs as an external process | 0 tokens |
 | Hook latency | Only on `git commit`/`git push` | ~2s (PowerShell process spawn) |
 
-47 idle tokens is smaller than this sentence, and the ~3K-token worst case is a one-time, occasional cost against a 100K+ token context window — not a per-message tax. The hook never touches the LLM context at all.
+47 idle tokens is smaller than this sentence, and the ~3K-token worst case is a one-time, occasional cost against a 200K-token context window (Cursor's default for Claude Sonnet/Opus models, per [Cursor's models & pricing docs](https://cursor.com/docs/models-and-pricing) — up to 1M with Max Mode) — not a per-message tax. The hook never touches the LLM context at all.
 
 ## License
 
