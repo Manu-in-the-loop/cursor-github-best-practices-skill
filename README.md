@@ -18,7 +18,7 @@ Once installed, the skill **auto-invokes** — you never need to ask Cursor to "
 This repo implements a two-layer safety model, because instructions alone are advisory:
 
 1. **Instructional layer (the skill).** Cursor reads `SKILL.md` (and the linked reference files) for anything requiring judgment: how to name a branch, what a good PR description looks like, how to resolve a merge conflict without blindly picking a side.
-2. **Deterministic layer (the hook).** `git-guard.ps1` runs *before* any `git commit`/`git push` the agent attempts, and mechanically denies the action — regardless of what the agent "decided" — if it detects:
+2. **Deterministic layer (the hook).** `git-guard.sh` (macOS/Linux) or `git-guard.ps1` (Windows) runs *before* any `git commit`/`git push` the agent attempts, and mechanically denies the action — regardless of what the agent "decided" — if it detects:
    - a commit being made directly on `main` or `master`,
    - a hard force-push (`--force`/`-f`, as opposed to `--force-with-lease`),
    - a staged secret (common API key/token patterns, private key blocks, or a staged `.env*` file).
@@ -44,7 +44,9 @@ cursor-github-best-practices-skill/
 │           ├── SECURITY.md
 │           └── CONFLICT_RESOLUTION.md
 └── hooks/
-    ├── hooks.json                      # beforeShellExecution registration
+    ├── hooks.json                      # beforeShellExecution registration (macOS/Linux)
+    ├── hooks.windows.json              # beforeShellExecution registration (Windows)
+    ├── git-guard.sh                    # Deterministic enforcement (Bash)
     └── git-guard.ps1                   # Deterministic enforcement (PowerShell)
 ```
 
@@ -52,7 +54,50 @@ cursor-github-best-practices-skill/
 
 This is a **personal** skill/hook pair, meant to apply across all of your projects — install it under your Cursor user directory (`~/.cursor/`), not inside a single repo.
 
-0. Clone this repo and `cd` into it (the commands below use paths relative to the repo root):
+### macOS / Linux
+
+Requires `bash` and either `python3` or `jq` (for JSON stdin/stdout).
+
+0. Clone this repo and `cd` into it:
+
+   ```bash
+   git clone https://github.com/manujoy7/cursor-github-best-practices-skill.git
+   cd cursor-github-best-practices-skill
+   ```
+
+1. Copy the skill folder:
+
+   ```bash
+   mkdir -p ~/.cursor/skills
+   cp -R skills/github-distributed-workflow ~/.cursor/skills/github-distributed-workflow
+   ```
+
+2. Copy the hook script:
+
+   ```bash
+   mkdir -p ~/.cursor/hooks
+   cp hooks/git-guard.sh ~/.cursor/hooks/git-guard.sh
+   chmod +x ~/.cursor/hooks/git-guard.sh
+   ```
+
+3. Install `hooks.json`:
+   - If you don't already have `~/.cursor/hooks.json`, copy the macOS/Linux template there:
+
+     ```bash
+     cp hooks/hooks.json ~/.cursor/hooks.json
+     ```
+
+   - If you already have one, merge the `beforeShellExecution` entry from `hooks/hooks.json` into your existing file instead of overwriting it. The command should be:
+
+     ```json
+     "command": "bash hooks/git-guard.sh"
+     ```
+
+4. Restart Cursor (or check the **Hooks** settings tab) to confirm the hook loaded.
+
+### Windows
+
+0. Clone this repo and `cd` into it:
 
    ```powershell
    git clone https://github.com/manujoy7/cursor-github-best-practices-skill.git
@@ -73,16 +118,21 @@ This is a **personal** skill/hook pair, meant to apply across all of your projec
    ```
 
 3. Install `hooks.json`:
-   - If you don't already have `$env:USERPROFILE\.cursor\hooks.json`, copy `hooks\hooks.json` there directly.
-   - If you already have one, merge the `beforeShellExecution` entry from `hooks\hooks.json` into your existing file instead of overwriting it.
+   - If you don't already have `$env:USERPROFILE\.cursor\hooks.json`, copy `hooks\hooks.windows.json` there as `hooks.json`:
+
+     ```powershell
+     Copy-Item -Force "hooks\hooks.windows.json" "$env:USERPROFILE\.cursor\hooks.json"
+     ```
+
+   - If you already have one, merge the `beforeShellExecution` entry from `hooks\hooks.windows.json` into your existing file instead of overwriting it.
 
 4. Restart Cursor (or check the **Hooks** settings tab) to confirm the hook loaded.
 
 ## Notes
 
-- The hook script is PowerShell (native to Windows, no bash/WSL/Node dependency). If you're on macOS/Linux, port the logic in `git-guard.ps1` to a shell script and update the `command` in `hooks.json` accordingly.
+- The macOS/Linux hook is Bash (`git-guard.sh`); the Windows hook is PowerShell (`git-guard.ps1`). Both implement the same checks. `git-guard.sh` needs `python3` or `jq` to parse Cursor's JSON payload — without either, it fails open (allows the command).
 - This skill/hook pair does not replace server-side protection. Enable branch protection rules / rulesets on your GitHub repositories (requiring PRs and passing checks before merging to `main`) — that is the one control that holds even outside of Cursor.
-- **Keep a project folder open.** `git-guard.ps1` decides which repo to check using the `cwd` Cursor includes in the hook payload. If no project folder is open (e.g. an empty chat window) — or the agent changes directories with an inline `cd`/`Set-Location` instead of the tool's own working-directory setting — Cursor may not supply a usable `cwd`. The script is deliberately fail-open in that case (it allows the command rather than risk checking the wrong repo), so its protection only applies with a project folder open and a `cwd` present.
+- **Keep a project folder open.** The hook decides which repo to check using the `cwd` Cursor includes in the hook payload. If no project folder is open (e.g. an empty chat window) — or the agent changes directories with an inline `cd`/`Set-Location` instead of the tool's own working-directory setting — Cursor may not supply a usable `cwd`. The script is deliberately fail-open in that case (it allows the command rather than risk checking the wrong repo), so its protection only applies with a project folder open and a `cwd` present.
 
 ## Context/prompt overhead
 
@@ -93,8 +143,8 @@ Cursor loads skills via progressive disclosure: only a skill's `name`/`descripti
 | Idle (registry entry) | Every session, git work or not | 47 tokens |
 | Active (`SKILL.md` body) | Only when the agent is doing git/PR work | 917 tokens |
 | Worst case (+ all 5 `references/*.md`) | Rare — usually only 1-2 are needed | ~3,000 tokens |
-| Hook (`git-guard.ps1`) | N/A — runs as an external process | 0 tokens |
-| Hook latency | Only on `git commit`/`git push` | ~2s (PowerShell process spawn) |
+| Hook (`git-guard.sh` / `git-guard.ps1`) | N/A — runs as an external process | 0 tokens |
+| Hook latency | Only on `git commit`/`git push` | ~2s (PowerShell) / typically faster (Bash) |
 
 47 idle tokens is smaller than this sentence, and the ~3K-token worst case is a one-time, occasional cost against a 200K-token context window (Cursor's default for Claude Sonnet/Opus models, per [Cursor's models & pricing docs](https://cursor.com/docs/models-and-pricing) — up to 1M with Max Mode) — not a per-message tax. The hook never touches the LLM context at all.
 

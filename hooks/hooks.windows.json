@@ -3,7 +3,7 @@
   "hooks": {
     "beforeShellExecution": [
       {
-        "command": "bash hooks/git-guard.sh",
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File hooks/git-guard.ps1",
         "matcher": "git\\s+(commit|push)",
         "failClosed": false
       }
